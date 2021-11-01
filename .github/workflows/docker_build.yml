@@ -1,0 +1,66 @@
+name: Build Docker Images
+
+on: push
+
+env:
+  CMAKE_VERSION: "3.21.4"
+  CMAKE_URL: "https://github.com/Kitware/CMake/releases/download/v3.21.4/cmake-3.21.4-linux-x86_64.tar.gz"
+  QT_MAJOR: "515"
+  QT_VERSION: "5.15.2"
+
+jobs:
+  cmake-gcc:
+    name: "CMake + Gcc"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gcc_major: 9
+            distro: focal
+          - gcc_major: 10
+            distro: focal
+          - gcc_major: 11
+            distro: focal
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Gcc${{ matrix.gcc_major }} + CMake ${{ env.CMAKE_VERSION }}
+        uses: docker/build-push-action@v2
+        with:
+          target: cmake-gcc
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            arbmind/cmake-gcc${{ matrix.gcc_major }}:latest
+            arbmind/cmake-gcc${{ matrix.gcc_major }}:cmake_${{ env.CMAKE_VERSION }}
+          build-args: |
+            DISTRO=${{ matrix.distro }}
+            GCC_MAJOR=${{ matrix.gcc_major }}
+            CMAKE_VERSION=${{ env.CMAKE_VERSION }}
+            CMAKE_URL=${{ env.CMAKE_URL }}
+
+      - name: Gcc${{ matrix.gcc_major }} + Qt ${{ env.QT_VERSION }} + CMake ${{ env.CMAKE_VERSION }}
+        uses: docker/build-push-action@v2
+        with:
+          target: cmake-gcc-qt
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            arbmind/cmake-gcc${{ matrix.gcc_major }}-qt${{ env.QT_MAJOR }}:latest
+            arbmind/cmake-gcc${{ matrix.gcc_major }}-qt${{ env.QT_MAJOR }}:cmake_${{ env.CMAKE_VERSION }}
+          build-args: |
+            DISTRO=${{ matrix.distro }}
+            GCC_MAJOR=${{ matrix.gcc_major }}
+            QT_MAJOR=${{ env.QT_MAJOR }}
+            QT_VERSION=${{ env.QT_VERSION }}
+            CMAKE_VERSION=${{ env.CMAKE_VERSION }}
+            CMAKE_URL=${{ env.CMAKE_URL }}
